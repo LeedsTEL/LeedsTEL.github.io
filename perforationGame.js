@@ -21,12 +21,15 @@ var batteryRad = Math.sqrt(Math.pow(batteryImgW, 2) + Math.pow(batteryImgH, 2)) 
 var gridW = 900;
 var gridH = 2000;
 var scroll = 0;
+var scrollVal = 0;
 var startRotation = Math.floor(Math.random() * (Math.PI / 2)) - Math.PI / 4;
 var rotation = startRotation;
 var hitBoxWidth = 0.8;
 var hitBoxHeight = 0.5;
 var batteryHitBox;
 var activeHitboxes = [];
+
+var progress = 0;
 
 var bubbleGrowth = 0;
 var growBubble = false;
@@ -63,6 +66,7 @@ var grabbing = false;
 var gameOver = false;
 var win = false;
 var showHitboxes = false;
+var noclip = false;
 
 var helpBtn;
 var aishaBold;
@@ -76,12 +80,15 @@ function preload() {
   helpImg = loadImage('BowelHelp.png');
   gameOverImg = loadImage('GameOver.png');
   winningImg = loadImage('WinningBattery.png');
-  //aishaBold = loadFont('aisha-latin');
 }
 
 function setup() {
   var cnv = createCanvas(windowWidth, windowHeight);
   cnv.style('display', 'block');
+  gridW = Math.min(900, ceil((width / 100) * 0.7) * 100);
+  if(gridW / 100 % 2 === 0) {
+    gridW -= 100;
+  }
   textAlign(CENTER, CENTER);
   genMaze(cellSize);
   wallImg.resize(imgScale * 256, imgScale * 128);
@@ -91,42 +98,43 @@ function setup() {
   helpBtnImg.resize(imgScale * 256, imgScale * 256);
   helpBtnImgH.resize(imgScale * 256, imgScale * 256);
   helpBtn = new Button(createVector(gridW - cellSize, -3 * cellSize), helpBtnImg, helpBtnImgH, 256 * imgScale, 256 * imgScale);
-  scroll = -69;
+  console.log(batteryHitBox.point.y);
+  scroll = (-70 * -1 / height) * (gridH + 350);
   activeHitboxes.push(new hitBox(createVector(0,0),0,0));
   activeHitboxes[0].points = [createVector(0, -100),
-                              createVector(400 + imgScale * 128 * hitBoxHeight / 2, -100),
-                              createVector(400 + imgScale * 128 * hitBoxHeight / 2, 0),
+                              createVector(floor(gridW / 100 / 2) * 100 + imgScale * 128 * hitBoxHeight / 2, -100),
+                              createVector(floor(gridW / 100 / 2) * 100 + imgScale * 128 * hitBoxHeight / 2, 0),
                               createVector(0,0)];
   activeHitboxes[0].recalcEdges();
   activeHitboxes.push(new hitBox(createVector(0,0),0,0));
   activeHitboxes[1].points = [createVector(gridW, -100),
-                              createVector(505 - imgScale * 128 * hitBoxHeight / 2, -100),
-                              createVector(505 - imgScale * 128 * hitBoxHeight / 2, 0),
+                              createVector(floor(gridW / 100 / 2) * 100 + 105 - imgScale * 128 * hitBoxHeight / 2, -100),
+                              createVector(floor(gridW / 100 / 2) * 100 + 105 - imgScale * 128 * hitBoxHeight / 2, 0),
                               createVector(gridW,0)];
   activeHitboxes[1].recalcEdges();
   activeHitboxes.push(new hitBox(createVector(0,0),0,0));
   activeHitboxes[2].points = [createVector(0, -200),
-                              createVector(320 - imgScale * 128 * hitBoxHeight / 2, -200),
-                              createVector(400 + imgScale * 128 * hitBoxHeight / 2, -100),
+                              createVector(floor(gridW / 100 / 2) * 100 - 80 - imgScale * 128 * hitBoxHeight / 2, -200),
+                              createVector(floor(gridW / 100 / 2) * 100 + imgScale * 128 * hitBoxHeight / 2, -100),
                               createVector(0, -100)];
   activeHitboxes[2].recalcEdges();
   activeHitboxes.push(new hitBox(createVector(0,0),0,0));
-  activeHitboxes[3].points = [createVector(585 + imgScale * 128 * hitBoxHeight / 2, -200),
+  activeHitboxes[3].points = [createVector(floor(gridW / 100 / 2) * 100 + 185 + imgScale * 128 * hitBoxHeight / 2, -200),
                               createVector(gridW, -200),
                               createVector(gridW, -100),
-                              createVector(505 - imgScale * 128 * hitBoxHeight / 2, -100)];
+                              createVector(floor(gridW / 100 / 2) * 100 + 105 - imgScale * 128 * hitBoxHeight / 2, -100)];
   activeHitboxes[3].recalcEdges();
   activeHitboxes.push(new hitBox(createVector(0,0),0,0));
   activeHitboxes[4].points = [createVector(0, -500),
-                              createVector(320 - imgScale * 128 * hitBoxHeight / 2, -500),
-                              createVector(320 - imgScale * 128 * hitBoxHeight / 2, -200),
+                              createVector(floor(gridW / 100 / 2) * 100 - 80 - imgScale * 128 * hitBoxHeight / 2, -500),
+                              createVector(floor(gridW / 100 / 2) * 100 - 80 - imgScale * 128 * hitBoxHeight / 2, -200),
                               createVector(0, -200)];
   activeHitboxes[4].recalcEdges();                   
   activeHitboxes.push(new hitBox(createVector(0,0),0,0));
-  activeHitboxes[5].points = [createVector(585 + imgScale * 128 * hitBoxHeight / 2, -500),
+  activeHitboxes[5].points = [createVector(floor(gridW / 100 / 2) * 100 + 185 + imgScale * 128 * hitBoxHeight / 2, -500),
                               createVector(gridW, -500),
                               createVector(gridW, -200),
-                              createVector(585 + imgScale * 128 * hitBoxHeight / 2, -200)];
+                              createVector(floor(gridW / 100 / 2) * 100 + 185 + imgScale * 128 * hitBoxHeight / 2, -200)];
   activeHitboxes[5].recalcEdges();
   activeHitboxes.push(new hitBox(createVector(0,0),0,0));
   activeHitboxes[6].points = [createVector(0, -600),
@@ -138,8 +146,9 @@ function setup() {
 
 function draw() {
   background(51);
+  console.log("MouseY :" + mouseY + "; scroll : " + scroll);
   if(grabbing)  {
-    scroll = (-mouseY + height / 10) * 1.5;
+    scroll = lerp(scroll, (-mouseY / height) * (gridH + 350), 0.1);
   }
   offsetX = width/2 - gridW/2;
   offsetY = 450 + scroll;
@@ -165,13 +174,13 @@ function draw() {
   noStroke();
   fill(0, 36, 0, 43/100 * 255);
   rect(0, 4, gridW, gridH);
-  batteryHitBox.show(1);
   image(stomachImg, gridW/2 - imgScale * 440, -imgScale * 975);
+  batteryHitBox.show(1);
   stroke(255);
   for(var i = 0; i < grid.length; i++) {
     grid[i].show();
   }
-  if(!dropBattery) {
+  if(!dropBattery && !noclip) {
     for(var i = 0; i < activeHitboxes.length; i++) {
       checkCollision(batteryHitBox, activeHitboxes[i]);
       if(showHitboxes) {
@@ -193,6 +202,7 @@ function draw() {
     pop();
   }
   if(win) {
+    noStroke();
     fill(0, 155 * winFade);
     rect(0,0, width, height)
     push();
@@ -200,10 +210,10 @@ function draw() {
     tint(255, 255 * winFade);
     image(winningImg, 0, 0);
     fill(255);
-    textSize(10);
-    text("M", -115, 140);
-    text("S", 0, 140);
-    text("Ms", 115, 140);
+    textSize(14);
+    text("m", -115, 140);
+    text("s", 0, 140);
+    text("cs", 115, 140);
     textSize(60);
     let minutes = Math.floor(time / 1000 / 60);
     let seconds = Math.floor((time - minutes * 1000 * 60) / 1000);
@@ -224,6 +234,7 @@ function draw() {
     if(frameCount < battStartFrame + battDropDuration) {
       battDrop = Berp(0, 1, (frameCount - battStartFrame) / battDropDuration, 5, 7, 1.2);
       batteryHitBox.point.y = -400 + 200 * battDrop;
+      scroll = (-70 * customLerp(-1, 1, battDrop) / height) * (gridH + 350);
       rotation = Berp(startRotation, 0, (frameCount - battStartFrame) / battDropDuration, 3.5, 2.2, 1.2);
     } else {
       dropBattery = false;
@@ -256,8 +267,10 @@ function draw() {
   if(hideWin) {
     if(frameCount < winStartFrame + winFadeDuration) {
       winFade = easeInOutQuad(1, 0, (frameCount - winStartFrame) / winFadeDuration);
+      scroll =  customLerp(scroll, (-70 / height) * (gridH + 350), winFade);
     } else {
       hideWin = false;
+      win = false;
     }
   }
   if(starting) {
@@ -306,7 +319,6 @@ function mousePressed() {
       startTimer = true;
     }
     if(win) {
-      win = false;
       winStartFrame = frameCount;
       winFade = 1;
       hideWin = true;
@@ -315,9 +327,9 @@ function mousePressed() {
     battStartFrame = frameCount;
     battDrop = 0;
     batteryHitBox = new hitBox(createVector(gridW / cellSize  / 2* 100, -400), imgScale * 0.7 * 70, imgScale * 0.7 * 169);
-    scroll = -69;
     startRotation = Math.floor(Math.random() * (Math.PI / 2)) - Math.PI / 4;
     rotation = startRotation;
+    scroll = (-70 / height) * (gridH + 350);
     genMaze(cellSize);
   }
 }
@@ -606,11 +618,6 @@ function Cell(i, j) {
     stroke(255, 255, 0);
     if(this.walls[0]) {
       image(wallImg, x, y - imgScale * 128 / 2);
-      if(showHitboxes) {
-        if(this.activeHitbox) {
-          //this.hitboxes[0].show(0);
-        }
-      }
     }
     if(this.walls[1]) {
       push();
@@ -618,19 +625,9 @@ function Cell(i, j) {
       rotate(PI /2);
       image(wallImg, 0, 0);
       pop();
-      if(showHitboxes) {
-        if(this.activeHitbox) {
-          //this.hitboxes[1].show(0);
-        }
-      }
     }
     if(this.walls[2] && this.showBottom) {
       image(wallImg, x, y + w - w/4);
-      if(showHitboxes) {
-        if(this.activeHitbox) {
-          //this.hitboxes[2].show(0);
-        }
-      }
     }
     if(this.walls[3] && this.showLeft) {
       push();
@@ -638,11 +635,6 @@ function Cell(i, j) {
       rotate(PI /2);
       image(wallImg, 0, 0);
       pop();
-      if(showHitboxes) {
-        if(this.activeHitbox) {
-          //this.hitboxes[3].show(0);
-        }
-      }
     }
   }
 }
@@ -808,10 +800,13 @@ function Button(pos, img , hoverImg, imgW, imgH) {
     if(this.clicked) {
       push();
       translate(-offsetX, -offsetY);
+      noStroke();
       fill(0, this.fade * 155);
       rect(0,0,width, height);
       tint(255, this.fade * 255);
-      image(helpImg, (width - 1024) / 2, 0);
+      imageMode(CENTER);
+      image(helpImg, width / 2, height / 2);
+      imageMode(CORNER);
       pop();
     }
   }
