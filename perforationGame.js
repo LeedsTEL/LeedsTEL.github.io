@@ -1,0 +1,840 @@
+var cols, rows;
+var w;
+var grid = [];
+
+var current;
+var finished = false;
+
+var stack = [];
+var hitboxes = [];
+var curr = [];
+var prev = [];
+
+var angles = [112.5 * Math.PI / 180, 67.5 * Math.PI / 180, 292.5 * Math.PI / 180, 247.5 * Math.PI / 180];
+
+var wallImg, stomachImg, batteryImg, helpBtnImg, helpBtnImgH, helpImg, winningImg;
+var cellSize = 100;
+var imgScale = (cellSize * 1.2/256);
+var batteryImgW = imgScale * 0.7 * 70;
+var batteryImgH = imgScale * 0.7 * 169;
+var batteryRad = Math.sqrt(Math.pow(batteryImgW, 2) + Math.pow(batteryImgH, 2)) / 2;
+var gridW = 900;
+var gridH = 2000;
+var scroll = 0;
+var startRotation = Math.floor(Math.random() * (Math.PI / 2)) - Math.PI / 4;
+var rotation = startRotation;
+var hitBoxWidth = 0.8;
+var hitBoxHeight = 0.5;
+var batteryHitBox;
+var activeHitboxes = [];
+
+var bubbleGrowth = 0;
+var growBubble = false;
+var startFrame = 0;
+var bubbleGrowDuration = 70;
+var backgroundFade = 0;
+
+var dropBattery = true;
+var battDrop = 0;
+var battStartFrame = 0;
+var battDropDuration = 70;
+
+var showHelp = false;
+var hideHelp = false;
+var helpFade = 0;
+var helpStartFrame = 0;
+var helpFadeDuration = 20;
+
+var showWin = false;
+var hideWin = false;
+var winFade = 0;
+var winStartFrame = 0;
+var winFadeDuration = 20;
+
+var startTimer = true;
+var startRound = 0;
+var time = 0;
+
+var starting = true;
+
+var offsetX, offsetY;
+
+var grabbing = false;
+var gameOver = false;
+var win = false;
+var showHitboxes = false;
+
+var helpBtn;
+var aishaBold;
+
+function preload() {
+  wallImg = loadImage('IntestineWallDetail.png');
+  stomachImg = loadImage('Stomach.png');
+  batteryImg = loadImage('Battery.png');
+  helpBtnImg = loadImage('HelpButton.png');
+  helpBtnImgH = loadImage('HelpButtonHighlight.png');
+  helpImg = loadImage('BowelHelp.png');
+  gameOverImg = loadImage('GameOver.png');
+  winningImg = loadImage('WinningBattery.png');
+  //aishaBold = loadFont('aisha-latin');
+}
+
+function setup() {
+  var cnv = createCanvas(windowWidth, windowHeight);
+  cnv.style('display', 'block');
+  textAlign(CENTER, CENTER);
+  genMaze(cellSize);
+  wallImg.resize(imgScale * 256, imgScale * 128);
+  stomachImg.resize(imgScale * 900, imgScale * 1000);
+  batteryImg.resize(batteryImgW, batteryImgH);
+  batteryHitBox = new hitBox(createVector(gridW / cellSize  / 2* 100, -400), imgScale * 0.7 * 70, imgScale * 0.7 * 169);
+  helpBtnImg.resize(imgScale * 256, imgScale * 256);
+  helpBtnImgH.resize(imgScale * 256, imgScale * 256);
+  helpBtn = new Button(createVector(gridW - cellSize, -3 * cellSize), helpBtnImg, helpBtnImgH, 256 * imgScale, 256 * imgScale);
+  scroll = -69;
+  activeHitboxes.push(new hitBox(createVector(0,0),0,0));
+  activeHitboxes[0].points = [createVector(0, -100),
+                              createVector(400 + imgScale * 128 * hitBoxHeight / 2, -100),
+                              createVector(400 + imgScale * 128 * hitBoxHeight / 2, 0),
+                              createVector(0,0)];
+  activeHitboxes[0].recalcEdges();
+  activeHitboxes.push(new hitBox(createVector(0,0),0,0));
+  activeHitboxes[1].points = [createVector(gridW, -100),
+                              createVector(505 - imgScale * 128 * hitBoxHeight / 2, -100),
+                              createVector(505 - imgScale * 128 * hitBoxHeight / 2, 0),
+                              createVector(gridW,0)];
+  activeHitboxes[1].recalcEdges();
+  activeHitboxes.push(new hitBox(createVector(0,0),0,0));
+  activeHitboxes[2].points = [createVector(0, -200),
+                              createVector(320 - imgScale * 128 * hitBoxHeight / 2, -200),
+                              createVector(400 + imgScale * 128 * hitBoxHeight / 2, -100),
+                              createVector(0, -100)];
+  activeHitboxes[2].recalcEdges();
+  activeHitboxes.push(new hitBox(createVector(0,0),0,0));
+  activeHitboxes[3].points = [createVector(585 + imgScale * 128 * hitBoxHeight / 2, -200),
+                              createVector(gridW, -200),
+                              createVector(gridW, -100),
+                              createVector(505 - imgScale * 128 * hitBoxHeight / 2, -100)];
+  activeHitboxes[3].recalcEdges();
+  activeHitboxes.push(new hitBox(createVector(0,0),0,0));
+  activeHitboxes[4].points = [createVector(0, -500),
+                              createVector(320 - imgScale * 128 * hitBoxHeight / 2, -500),
+                              createVector(320 - imgScale * 128 * hitBoxHeight / 2, -200),
+                              createVector(0, -200)];
+  activeHitboxes[4].recalcEdges();                   
+  activeHitboxes.push(new hitBox(createVector(0,0),0,0));
+  activeHitboxes[5].points = [createVector(585 + imgScale * 128 * hitBoxHeight / 2, -500),
+                              createVector(gridW, -500),
+                              createVector(gridW, -200),
+                              createVector(585 + imgScale * 128 * hitBoxHeight / 2, -200)];
+  activeHitboxes[5].recalcEdges();
+  activeHitboxes.push(new hitBox(createVector(0,0),0,0));
+  activeHitboxes[6].points = [createVector(0, -600),
+                              createVector(gridW, -600),
+                              createVector(gridW, -400),
+                              createVector(0, -400)];
+  activeHitboxes[6].recalcEdges();
+}
+
+function draw() {
+  background(51);
+  if(grabbing)  {
+    scroll = (-mouseY + height / 10) * 1.5;
+  }
+  offsetX = width/2 - gridW/2;
+  offsetY = 450 + scroll;
+  activateHitboxes();
+  if(!gameOver && grabbing) {
+    if(keyIsDown(81) || keyIsDown(37)) {
+      rotation -= 0.1;
+    }
+    if(keyIsDown(69) || keyIsDown(39)) {
+      rotation += 0.1;
+    }
+  }
+  for(var i = 0; i < hitboxes.length; i++) {
+
+  }
+  if(grabbing) {
+    batteryHitBox.point = createVector(mouseX - offsetX, mouseY - offsetY);
+  }
+  batteryHitBox.rot = rotation;
+  batteryHitBox.updateValues(1);
+  push();
+  translate(offsetX, offsetY);
+  noStroke();
+  fill(0, 36, 0, 43/100 * 255);
+  rect(0, 4, gridW, gridH);
+  batteryHitBox.show(1);
+  image(stomachImg, gridW/2 - imgScale * 440, -imgScale * 975);
+  stroke(255);
+  for(var i = 0; i < grid.length; i++) {
+    grid[i].show();
+  }
+  if(!dropBattery) {
+    for(var i = 0; i < activeHitboxes.length; i++) {
+      checkCollision(batteryHitBox, activeHitboxes[i]);
+      if(showHitboxes) {
+        activeHitboxes[i].show(0);
+      }
+    }
+  }
+  helpBtn.checkHovering(createVector(mouseX - offsetX, mouseY - offsetY));
+  helpBtn.show();
+  pop();
+  imageMode(CENTER);
+  if(gameOver) {
+    fill(0,155 * backgroundFade);
+    rect(0,0,width, height);
+    push();
+    translate(width / 2, height / 2);
+    scale(bubbleGrowth);
+    image(gameOverImg, 0, 0);
+    pop();
+  }
+  if(win) {
+    fill(0, 155 * winFade);
+    rect(0,0, width, height)
+    push();
+    translate(width / 2, height / 2);
+    tint(255, 255 * winFade);
+    image(winningImg, 0, 0);
+    fill(255);
+    textSize(10);
+    text("M", -115, 140);
+    text("S", 0, 140);
+    text("Ms", 115, 140);
+    textSize(60);
+    let minutes = Math.floor(time / 1000 / 60);
+    let seconds = Math.floor((time - minutes * 1000 * 60) / 1000);
+    let milliseconds = Math.round((time - minutes * 1000 * 60 - seconds * 1000) / 10);
+    text((minutes > 9 ? minutes : ("0" + minutes)) + " : " + (seconds > 9 ? seconds : ("0" + seconds)) + " : " + (milliseconds > 9 ? milliseconds : ("0" + milliseconds)), 0, 100);
+    pop();
+  }
+  imageMode(CORNER);
+  if(growBubble) {
+    if(frameCount < startFrame + bubbleGrowDuration) {
+      bubbleGrowth = Berp(0, 1, (frameCount - startFrame) / bubbleGrowDuration, 3.5, 2.2, 1.2);
+      backgroundFade = easeInOutQuad(0, 1, (frameCount - startFrame) / bubbleGrowDuration);
+    } else {
+      growBubble = false;
+    }
+  }
+  if(dropBattery) {
+    if(frameCount < battStartFrame + battDropDuration) {
+      battDrop = Berp(0, 1, (frameCount - battStartFrame) / battDropDuration, 5, 7, 1.2);
+      batteryHitBox.point.y = -400 + 200 * battDrop;
+      rotation = Berp(startRotation, 0, (frameCount - battStartFrame) / battDropDuration, 3.5, 2.2, 1.2);
+    } else {
+      dropBattery = false;
+    }
+  }
+  if(showHelp) {
+    if(frameCount < helpStartFrame + helpFadeDuration) {
+      helpFade = easeInOutQuad(0, 1, (frameCount - helpStartFrame) / helpFadeDuration);
+      helpBtn.fade = helpFade;
+    } else {
+      showHelp = false;
+    }
+  }
+  if(hideHelp) {
+    if(frameCount < helpStartFrame + helpFadeDuration) {
+      helpFade = easeInOutQuad(1, 0, (frameCount - helpStartFrame) / helpFadeDuration);
+      helpBtn.fade = helpFade;
+    } else {
+      hideHelp = false;
+      helpBtn.clicked = false;
+    }
+  }
+  if(showWin) {
+    if(frameCount < winStartFrame + winFadeDuration) {
+      winFade = easeInOutQuad(0, 1, (frameCount - winStartFrame) / winFadeDuration);
+    } else {
+      showWin = false;
+    }
+  }
+  if(hideWin) {
+    if(frameCount < winStartFrame + winFadeDuration) {
+      winFade = easeInOutQuad(1, 0, (frameCount - winStartFrame) / winFadeDuration);
+    } else {
+      hideWin = false;
+    }
+  }
+  if(starting) {
+    if(millis() > 1500) {
+      starting = false;
+      helpStartFrame = frameCount;
+      helpBtn.clicked = true;
+      showHelp = true;
+    }
+  }
+  if(batteryHitBox.point.y > gridH + cellSize && !win) {
+    win = true;
+    showWin = true;
+    winStartFrame = frameCount;
+    winFade = 0;
+    grabbing = false;
+    time = millis() - startRound;
+    startTimer = true;
+  }
+}
+
+function mouseClicked() {
+  if(helpBtn.hovering) {
+    helpBtn.fade = 0;
+    helpStartFrame = frameCount;
+    helpBtn.clicked = true;
+    showHelp = true;
+  } else {
+    helpStartFrame = frameCount;
+    hideHelp = true;
+  }
+}
+
+function mousePressed() {
+  if(!gameOver && !dropBattery && !starting && !showHelp && !win) {
+    if(createVector(mouseX, mouseY).dist(createVector(batteryHitBox.point.x + offsetX, batteryHitBox.point.y + offsetY)) < 20) {
+      grabbing = true;
+      if(startTimer) {
+        startTimer = false;
+        startRound = millis();
+      }
+    }
+  }else if(!dropBattery && !starting && !showHelp){
+    if(gameOver) {
+      gameOver = false;
+      startTimer = true;
+    }
+    if(win) {
+      win = false;
+      winStartFrame = frameCount;
+      winFade = 1;
+      hideWin = true;
+    }
+    dropBattery = true;
+    battStartFrame = frameCount;
+    battDrop = 0;
+    batteryHitBox = new hitBox(createVector(gridW / cellSize  / 2* 100, -400), imgScale * 0.7 * 70, imgScale * 0.7 * 169);
+    scroll = -69;
+    startRotation = Math.floor(Math.random() * (Math.PI / 2)) - Math.PI / 4;
+    rotation = startRotation;
+    genMaze(cellSize);
+  }
+}
+
+function mouseReleased() {
+  grabbing = false;
+}
+
+function GameOver() {
+  if(gameOver == false) {
+    grabbing = false;
+    gameOver = true;
+    startFrame = frameCount;
+    bubbleGrowth = 0;
+    backgroundFade = 0;
+    growBubble = true;
+  }
+}
+
+function activateHitboxes() {
+  var update = false;
+  var i = floor((mouseX - offsetX) / cellSize);
+  var j = Math.max(0,floor((mouseY - offsetY) / cellSize));
+  curr = [i,j];
+  if(curr != prev) {
+    update = true;
+  }
+  prev = curr;
+  
+  if(update) {
+    for(let k = activeHitboxes.length; k > 7; k--) {
+      activeHitboxes.pop();
+    }
+
+    var current = grid[index(i, j)];
+
+    var top    = grid[index(i, j - 1)];
+    var right  = grid[index(i + 1, j)];
+    var bottom = grid[index(i, j + 1)];
+    var left   = grid[index(i - 1, j)];
+
+    var topR    = grid[index(i + 1, j - 1)];
+    var topL    = grid[index(i - 1, j - 1)];
+    var bottomR = grid[index(i + 1, j + 1)];
+    var bottomL = grid[index(i - 1, j + 1)];
+
+    for(var k = 0; k < grid.length; k++) {
+      grid[k].activeHitbox = false;
+    }
+
+    if(current) {
+      current.activeHitbox = true;
+      for(let k = 0; k < 4; k++) {
+        if(current.walls[k] && k < 2){
+          activeHitboxes.push(current.hitboxes[k]);
+        } else {
+          if(current.showBottom && k == 2) {
+            activeHitboxes.push(current.hitboxes[k]);
+          }
+          if(current.showLeft && k == 3) {
+            activeHitboxes.push(current.hitboxes[k]);
+          }
+        }
+      }
+    }
+
+    if(top) {
+      top.activeHitbox = true;
+      for(let k = 0; k < 4; k++) {
+        if(top.walls[k] && k < 2){
+          activeHitboxes.push(top.hitboxes[k]);
+        } else {
+          if(top.showBottom && k == 2) {
+            activeHitboxes.push(top.hitboxes[k]);
+          }
+          if(top.showLeft && k == 3) {
+            activeHitboxes.push(top.hitboxes[k]);
+          }
+        }
+      }
+    }
+    if(right) {
+      right.activeHitbox = true;
+      for(let k = 0; k < 4; k++) {
+        if(right.walls[k] && k < 2){
+          activeHitboxes.push(right.hitboxes[k]);
+        } else {
+          if(right.showBottom && k == 2) {
+            activeHitboxes.push(right.hitboxes[k]);
+          }
+          if(right.showLeft && k == 3) {
+            activeHitboxes.push(right.hitboxes[k]);
+          }
+        }
+      }
+    }
+    if(bottom) {
+      bottom.activeHitbox = true;
+      for(let k = 0; k < 4; k++) {
+        if(bottom.walls[k] && k < 2){
+          activeHitboxes.push(bottom.hitboxes[k]);
+        } else {
+          if(bottom.showBottom && k == 2) {
+            activeHitboxes.push(bottom.hitboxes[k]);
+          }
+          if(bottom.showLeft && k == 3) {
+            activeHitboxes.push(bottom.hitboxes[k]);
+          }
+        }
+      }
+    }
+    if(left) {
+      left.activeHitbox = true;
+      for(let k = 0; k < 4; k++) {
+        if(left.walls[k] && k < 2){
+          activeHitboxes.push(left.hitboxes[k]);
+        } else {
+          if(left.showBottom && k == 2) {
+            activeHitboxes.push(left.hitboxes[k]);
+          }
+          if(left.showLeft && k == 3) {
+            activeHitboxes.push(left.hitboxes[k]);
+          }
+        }
+      }
+    }
+
+    if(topR) {
+      topR.activeHitbox = true;
+      for(let k = 0; k < 4; k++) {
+        if(topR.walls[k] && k < 2){
+          activeHitboxes.push(topR.hitboxes[k]);
+        } else {
+          if(topR.showBottom && k == 2) {
+            activeHitboxes.push(topR.hitboxes[k]);
+          }
+          if(topR.showLeft && k == 3) {
+            activeHitboxes.push(topR.hitboxes[k]);
+          }
+        }
+      }
+    }
+    if(topL) {
+      topL.activeHitbox = true;
+      for(let k = 0; k < 4; k++) {
+        if(topL.walls[k] && k < 2){
+          activeHitboxes.push(topL.hitboxes[k]);
+        } else {
+          if(topL.showBottom && k == 2) {
+            activeHitboxes.push(topL.hitboxes[k]);
+          }
+          if(topL.showLeft && k == 3) {
+            activeHitboxes.push(topL.hitboxes[k]);
+          }
+        }
+      }
+    }
+    if(bottomR) {
+      bottomR.activeHitbox = true;
+      for(let k = 0; k < 4; k++) {
+        if(bottomR.walls[k] && k < 2){
+          activeHitboxes.push(bottomR.hitboxes[k]);
+        } else {
+          if(bottomR.showBottom && k == 2) {
+            activeHitboxes.push(bottomR.hitboxes[k]);
+          }
+          if(bottomR.showLeft && k == 3) {
+            activeHitboxes.push(bottomR.hitboxes[k]);
+          }
+        }
+      }
+    }
+    if(bottomL) {
+      bottomL.activeHitbox = true;
+      for(let k = 0; k < 4; k++) {
+        if(bottomL.walls[k] && k < 2){
+          activeHitboxes.push(bottomL.hitboxes[k]);
+        } else {
+          if(bottomL.showBottom && k == 2) {
+            activeHitboxes.push(bottomL.hitboxes[k]);
+          }
+          if(bottomL.showLeft && k == 3) {
+            activeHitboxes.push(bottomL.hitboxes[k]);
+          }
+        }
+      }
+    }
+
+    update = false;
+  } 
+}
+
+function genMaze(s) {
+  cols = floor(gridW/s);
+  rows = floor(gridH/s);
+  w = s;
+  grid = [];
+  var finished = false;
+  for(var j = 0; j < rows; j++) {
+    for(var i = 0; i < cols; i++) {
+      var cell = new Cell(i,j);
+      grid.push(cell);
+    }
+  }
+  current = grid[cols * rows - floor(cols/2) - 1];
+  while(!finished) {
+    current.visited = true;
+    var next = current.checkNeighbors();
+    if(next) {
+      next.visited = true;
+      stack.push(current);
+      removeWalls(current, next);
+      current = next;
+    } else if(stack.length > 0) {
+      current = stack.pop();
+    } else {
+      finished = true;  
+    }
+  }
+  for(var i = 0; i < cols; i++) {
+    grid[cols * rows - cols + i].showBottom = true;
+  }
+  for(var i = 0; i < rows; i++) {
+    grid[i * cols].showLeft = true;
+  }
+
+  grid[floor(cols/2)].walls[0] = false;
+  grid[cols * rows - floor(cols/2) - 1].walls[2] = false;
+  grid[cols * rows - floor(cols/2) - 1].showBottom = false;
+}
+
+function index(i, j) {
+  if (i < 0 || j < 0 || i > cols - 1 || j > rows - 1) {
+    return -1; 
+  }
+  return i + j * cols; 
+}
+
+function Cell(i, j) {
+  this.i = i;
+  this.j = j;
+  this.walls = [true, true, true, true];
+  this.visited = false;
+  this.showBottom = false;
+  this.showLeft = false;
+  this.activeHitbox = false;
+  let hitBoxX = imgScale * 256;
+  let hitBoxY = imgScale * 128;
+  this.hitboxes = [new hitBox(createVector(i * w            , j * w - imgScale * 128 / 2).add(createVector((hitBoxX - hitBoxX *  hitBoxWidth) / 2, (hitBoxY - hitBoxY * hitBoxHeight) / 2)), hitBoxX * hitBoxWidth, hitBoxY * hitBoxHeight),
+                   new hitBox(createVector(i * w + w * 3 / 4, j * w                     ).add(createVector((hitBoxY - hitBoxY *  hitBoxHeight) / 2, (hitBoxX - hitBoxX * hitBoxWidth) / 2)), hitBoxY * hitBoxHeight, hitBoxX * hitBoxWidth),
+                   new hitBox(createVector(i * w            , j * w + w - w/4           ).add(createVector((hitBoxX - hitBoxX *  hitBoxWidth) / 2, (hitBoxY - hitBoxY * hitBoxHeight) / 2)), hitBoxX * hitBoxWidth, hitBoxY * hitBoxHeight),
+                   new hitBox(createVector(i * w - w / 4    , j * w                     ).add(createVector((hitBoxY - hitBoxY *  hitBoxHeight) / 2, (hitBoxX - hitBoxX * hitBoxWidth) / 2)), hitBoxY * hitBoxHeight, hitBoxX * hitBoxWidth)];
+  
+  this.checkNeighbors = function() {
+    var neighbors = [];
+    
+    var top    = grid[index(i, j - 1)];
+    var right  = grid[index(i + 1, j)];
+    var bottom = grid[index(i, j + 1)];
+    var left   = grid[index(i - 1, j)];
+    
+    if(top && !top.visited) {
+      neighbors.push(top);
+    }
+    if(right && !right.visited) {
+      neighbors.push(right);
+    }
+    if(bottom && !bottom.visited) {
+      neighbors.push(bottom);
+    }
+    if(left && !left.visited) {
+      neighbors.push(left);
+    }
+    
+    if(neighbors.length > 0) {
+      var r = floor(random(0, neighbors.length));
+      return neighbors[r];
+    } else {
+      return undefined;
+    }
+  }
+  
+  this.show = function() {
+    var x = this.i * w;
+    var y = this.j * w;
+    stroke(255, 255, 0);
+    if(this.walls[0]) {
+      image(wallImg, x, y - imgScale * 128 / 2);
+      if(showHitboxes) {
+        if(this.activeHitbox) {
+          //this.hitboxes[0].show(0);
+        }
+      }
+    }
+    if(this.walls[1]) {
+      push();
+      translate(x + w + w/3, y);
+      rotate(PI /2);
+      image(wallImg, 0, 0);
+      pop();
+      if(showHitboxes) {
+        if(this.activeHitbox) {
+          //this.hitboxes[1].show(0);
+        }
+      }
+    }
+    if(this.walls[2] && this.showBottom) {
+      image(wallImg, x, y + w - w/4);
+      if(showHitboxes) {
+        if(this.activeHitbox) {
+          //this.hitboxes[2].show(0);
+        }
+      }
+    }
+    if(this.walls[3] && this.showLeft) {
+      push();
+      translate(x + w/3, y);
+      rotate(PI /2);
+      image(wallImg, 0, 0);
+      pop();
+      if(showHitboxes) {
+        if(this.activeHitbox) {
+          //this.hitboxes[3].show(0);
+        }
+      }
+    }
+  }
+}
+
+function hitBox(point, x, y) {
+  this.point = point;
+  this.points = [this.point, createVector(this.point.x + x, this.point.y), createVector(this.point.x + x, this.point.y + y), createVector(this.point.x, this.point.y + y)];
+  this.edges = [p5.Vector.sub(this.points[0], this.points[1]), p5.Vector.sub(this.points[1], this.points[2]), p5.Vector.sub(this.points[2], this.points[3]), p5.Vector.sub(this.points[3], this.points[0])];
+  this.rot = 0;
+  this.intersect = false;
+
+  this.updateValues = function(type) {
+    if(type == 0){
+      this.points = [this.point, createVector(this.point.x + x, this.point.y), createVector(this.point.x + x, this.point.y + y), createVector(this.point.x, this.point.y + y)];
+      this.edges = [p5.Vector.sub(this.points[0], this.points[1]), p5.Vector.sub(this.points[1], this.points[2]), p5.Vector.sub(this.points[2], this.points[3]), p5.Vector.sub(this.points[3], this.points[0])];
+    } else if(type === 1) {
+      for(let i = 0; i < 4; i ++) {
+        this.points[i] = createVector(this.point.x + batteryRad * Math.cos(this.rot + angles[i]), this.point.y + batteryRad * Math.sin(this.rot + angles[i]));
+        this.edges = [p5.Vector.sub(this.points[0], this.points[1]), p5.Vector.sub(this.points[1], this.points[2]), p5.Vector.sub(this.points[2], this.points[3]), p5.Vector.sub(this.points[3], this.points[0])];
+      }
+    }
+  }
+
+  this.recalcEdges = function() {
+    this.edges = [p5.Vector.sub(this.points[0], this.points[1]), p5.Vector.sub(this.points[1], this.points[2]), p5.Vector.sub(this.points[2], this.points[3]), p5.Vector.sub(this.points[3], this.points[0])];
+  }
+
+  this.show = function(type) {
+    if(type === 1) {
+      push();
+      translate(this.point.x, this.point.y);
+      rotate(rotation);
+      image(batteryImg, -batteryImgW / 2, -batteryImgH / 2);
+      pop();
+    }
+    if(this.intersect) {
+      stroke(255,0,0);
+    }
+    if(showHitboxes) {
+      textSize(16);
+      text("(" + point.x + ":" + point.y + ")", point.x + 10, point.y + 10);
+      line(this.points[0].x, this.points[0].y, this.points[1].x, this.points[1].y);
+      line(this.points[1].x, this.points[1].y, this.points[2].x, this.points[2].y);
+      line(this.points[2].x, this.points[2].y, this.points[3].x, this.points[3].y);
+      line(this.points[3].x, this.points[3].y, this.points[0].x, this.points[0].y);
+    }
+  }
+}
+
+function removeWalls(a, b) {
+  var x = a.i - b.i;
+  switch(x) {
+    case 1:
+      a.walls[3] = false;
+      b.walls[1] = false; 
+      break;
+    case -1:
+      a.walls[1] = false;
+      b.walls[3] = false;
+      break;
+  }
+  var y = a.j - b.j;
+  switch(y) {
+    case 1:
+      a.walls[0] = false;
+      b.walls[2] = false; 
+      break;
+    case -1:
+      a.walls[2] = false;
+      b.walls[0] = false;
+      break;
+  }
+}
+
+function projectPolygon(axis, points, min, max) {
+  var dotProduct = axis.dot(points[0]);
+  min = dotProduct;
+  max = dotProduct;
+
+  for(var i = 0; i < points.length; i++) {
+    dotProduct = points[i].dot(axis);
+    if(dotProduct < min) {
+      min = dotProduct;
+    } else if(dotProduct > max) {
+      max = dotProduct;
+    }
+  }
+  return [min, max];
+}
+
+function intervalDistance(minA, maxA, minB, maxB) {
+  if(minA < minB) {
+    return minB - maxA;
+  } else {
+    return minA - maxB;
+  }
+}
+
+function checkCollision(boxA, boxB) {
+  boxA.intersect = true;
+  boxB.intersect = true;
+
+  var minIntervalDistance = 5000;
+  var translationAxis;
+  var edge;
+
+  for(var i = 0; i < 8; i++) {
+    if(i < 4) {
+      edge = boxA.edges[i];
+    } else {
+      edge = boxB.edges[i - 4];
+    }
+
+    var axis = createVector(-edge.y, edge.x);
+    axis.normalize();
+
+    var minA = 0; minB = 0; maxA = 0; maxB = 0;
+    var projectionA = projectPolygon(axis, boxA.points, minA, maxB);
+    var projectionB = projectPolygon(axis, boxB.points, minB, maxB);
+
+    if(intervalDistance(projectionA[0], projectionA[1], projectionB[0], projectionB[1]) > 0) {
+      boxA.intersect = false;
+      boxB.intersect = false;
+    }
+
+    if(!boxA.intersect) break;
+  }
+  if(boxA.intersect) {
+    GameOver();
+  }
+}
+
+function Button(pos, img , hoverImg, imgW, imgH) {
+
+  this.pos = pos;
+  this.img = img;
+  this.hoverImg = hoverImg;
+  this.imgW = imgW;
+  this.imgH = imgH;
+  this.hovering = false;
+  this.clicked = false;
+
+  this.fade = 0;
+
+  this.checkHovering = function(point) {
+    if(point.x > this.pos.x && point.x < this.pos.x + imgW && !this.clicked) {
+      if(point.y > this.pos.y && point.y < this.pos.y + imgH) {
+        this.hovering = true;
+      } else {
+        this.hovering = false;
+      }
+    } else { 
+      this.hovering = false;
+    }
+  }
+
+  this.show = function() {
+    if(this.hovering && !this.clicked) {
+      image(this.hoverImg, this.pos.x, this.pos.y);
+    } else {
+      image(this.img, this.pos.x, this.pos.y);
+    }
+    if(this.clicked) {
+      push();
+      translate(-offsetX, -offsetY);
+      fill(0, this.fade * 155);
+      rect(0,0,width, height);
+      tint(255, this.fade * 255);
+      image(helpImg, (width - 1024) / 2, 0);
+      pop();
+    }
+  }
+}
+
+function growBubble() {
+  var t = 0;
+  while(t < 1.5) {
+    t += deltaTime;
+    bubbleGrowth = Berp(0, 1, t / 1.5);
+  }
+}
+
+function Berp(start, end, value, spring1, spring2, spring3) {
+  value = Math.max(0, Math.min(value, 1));
+  value = (Math.sin(value * Math.PI * (spring1 * value * value * value)) * Math.pow(1 - value, spring2) + value) * (1 + (spring3 * (1 - value)));
+  return start + (end - start) * value;
+}
+
+function easeInOutQuad(start, end, value) {
+  return customLerp(start, end, value * value * (3 - 2 * value));
+}
+
+function customLerp(start, end, amt) {
+  return (1 - amt) * start + amt * end;
+}
