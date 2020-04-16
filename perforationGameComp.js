@@ -115,7 +115,7 @@ function setup() {
 
 function draw() {
   background(51);
-  console.log("MouseY :" + mouseY + "; scroll : " + scroll);
+  // console.log("MouseY :" + mouseY + "; scroll : " + scroll);
 
   if (grabbing) {
     scroll = lerp(scroll, -mouseY / height * (gridH + 350), 0.1);
